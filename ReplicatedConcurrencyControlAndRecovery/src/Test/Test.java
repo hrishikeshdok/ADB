@@ -8,11 +8,14 @@ public class Test {
 		
 		String [] test = str.split("\\(|\\)");
 		
-		for (String string : test) {
-			System.out.println(string);
-		} 
+//		for (String string : test) {
+//			System.out.println(string);
+//		} 
 		
+		if(str.contains("DUMP"))
+		{
 		System.out.println(test[1]);
+		}
 		//System.out.println(test[2]);
 		
 	}

@@ -3,20 +3,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-
 
 
 public class Simulator {
-	
-	static ArrayList<Transaction> transactionList = new ArrayList<Transaction>();//keeps track of active transactions
-	static Site sites[] = new Site[11];
-	static boolean siteStatus[] = new boolean[11];//true if up, false if down
-	static operation messageArray[] = new operation[11];//one for each site
-	static ArrayList<operation> waitQueue = new ArrayList<operation>();//wait queue of transaction operations
-	static int count = 0;
-	static ArrayList<Transaction> keepTrackOfTrans = new ArrayList<Transaction>();//keeps track of transactions to print summary at the TransactionManager.end
 
+
+	static int count = 0;
 	
 	public static void main(String arg[])
 	{
@@ -27,48 +19,81 @@ public class Simulator {
 			TransactionManager.sites[i] = new Site(i, count);
 			TransactionManager.siteStatus[i] = true;
 		}
-		File fromFile = new File("tp.txt");
+		File fromFile = new File("inputData.txt");
 		//File toFile = new File(output.txt);
 		BufferedReader reader = new BufferedReader(new FileReader(fromFile));
         //BufferedWriter writer = new BufferedWriter(new FileWriter(toFile));
         String line = null;
         String delimiter = "; ";//seperator between two concurrent commands
-        String temp[];
+        String command[];
+        
+        String commandName = "";
+        String transactionName = "";
+        String variableName = "";
+        String variableValue = "";
+        String siteName = "";
+        
         while ((line=reader.readLine()) != null)
         {
+        	
 			if(line.charAt(0) != '/')//escape comments
 			{
-				temp = line.split(delimiter);
-				for(int i=0; i<temp.length; i++)
+				command = line.split(delimiter);
+				for(int i=0; i<command.length; i++)
     			{
-					System.out.println(temp[i]);
-					if(temp[i].indexOf("begin") != -1)
+					String [] splittedCommand = command[i].split("\\(|\\)");
+					commandName = splittedCommand[0];
+					String parameters = splittedCommand[1];
+					String [] arguments;
+					if(!parameters.isEmpty() && parameters  != null)
 					{
-						if(temp[i].indexOf("RO") != -1)
-							TransactionManager.begin(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")")), true);
-						else
-							TransactionManager.begin(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")")), false);
+						arguments = parameters.split(",");
+						
+						//parse input parameters
+						switch (arguments.length) {
+						case 1:
+							transactionName = arguments[0];
+							siteName = arguments[0];
+							variableName = arguments[0].replaceAll("x", "");
+							break;
+						case 2:
+							transactionName = arguments[0];
+							variableName = arguments[1].replaceAll("x", "");
+							break;
+						case 3:
+							transactionName = arguments[0];
+							variableName = arguments[1].replaceAll("x", "");
+							variableValue = arguments[2];
+							break;
+							
+						default:
+							break;
+						}
 					}
-					else if(temp[i].indexOf("dump") != -1)
+					
+					if(commandName.equals("begin"))
+						TransactionManager.begin(transactionName, false);
+					else if ( commandName.equals("beginRO") )
+						TransactionManager.begin(transactionName, true);
+					else if(commandName.equals("dump"))
 					{
-						String attr = temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")"));
-						if(attr.equals(""))
+						if(siteName.equals(""))
 							TransactionManager.dump();
-						else if(attr.indexOf("x") == -1)
-							TransactionManager.dump(Integer.parseInt(attr));
+						else if(siteName.contains("x"))
+							TransactionManager.dump(Integer.parseInt(variableName));
 						else
-							TransactionManager.dump(attr);
+							TransactionManager.dump(siteName);
 					}
-					else if(temp[i].charAt(0) == 'R')
-						TransactionManager.R(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(",")), Integer.parseInt(temp[i].substring(temp[i].indexOf(",") + 2, temp[i].indexOf(")"))), temp[i]);
-					else if(temp[i].charAt(0) == 'W')
-						TransactionManager.W(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(",")), Integer.parseInt(temp[i].substring(temp[i].indexOf(",") + 2, temp[i].indexOf(",", 5))), Integer.parseInt(temp[i].substring(temp[i].indexOf(",", 5) + 1, temp[i].indexOf(")"))), temp[i]);
-					else if(temp[i].indexOf("fail") != -1)
-						TransactionManager.fail(Integer.parseInt(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")"))));
-					else if(temp[i].indexOf("recover") != -1)
-						TransactionManager.recover(Integer.parseInt(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")"))));
-					else if(temp[i].indexOf("end") != -1)
-						TransactionManager.end(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")")));
+					else if(commandName.equals("R"))
+						TransactionManager.R(transactionName, Integer.parseInt(variableName) );
+					else if(commandName.equals("W"))
+						TransactionManager.W(transactionName, Integer.parseInt(variableName), Integer.parseInt(variableValue));
+					else if(commandName.equals("fail"))
+						TransactionManager.fail(Integer.parseInt(siteName));
+					else if(commandName.equals("recover"))
+						TransactionManager.recover(Integer.parseInt(siteName));
+					else if(commandName.equals("end"))
+						TransactionManager.end(transactionName);
 				}
 				count++;
 			}

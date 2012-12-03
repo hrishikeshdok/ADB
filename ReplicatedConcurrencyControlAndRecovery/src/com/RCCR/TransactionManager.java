@@ -46,7 +46,7 @@ public class TransactionManager
 			sites[1+(variableName%10)].showVariable(variableName);
 	}
 
-	public static void R(String transactionName, int variableName, String operationName)
+	public static void R(String transactionName, int variableName)
 	{
 		getTransaction(transactionName).transSummary.add("Transaction " + transactionName + " wants to read Variable x" + variableName);
 		if(getTransaction(transactionName) != null)
@@ -55,7 +55,7 @@ public class TransactionManager
 			getTransaction(transactionName).transSummary.add("Transaction " + transactionName + " has been aborted so cannot process operation");
 	}
 
-	public static void W(String transactionName, int variableName, int value, String operationName)
+	public static void W(String transactionName, int variableName, int value)
 	{
 		getTransaction(transactionName).transSummary.add("Transaction " + transactionName + " wants to update value of Variable x" + variableName + " to " + value);
 		if(getTransaction(transactionName) != null)
