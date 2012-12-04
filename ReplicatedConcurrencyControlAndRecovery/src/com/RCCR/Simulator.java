@@ -16,7 +16,7 @@ public class Simulator {
 
 		for(int i=1; i<=10; i++)
 		{
-			TransactionManager.sites[i] = new Site(i, count);
+			TransactionManager.sites[i] = new Site(i, TransactionManager.count);
 			TransactionManager.siteStatus[i] = true;
 		}
 		File fromFile = new File("inputData.txt");
@@ -24,7 +24,7 @@ public class Simulator {
 		BufferedReader reader = new BufferedReader(new FileReader(fromFile));
         //BufferedWriter writer = new BufferedWriter(new FileWriter(toFile));
         String line = null;
-        String delimiter = "; ";//seperator between two concurrent commands
+        String delimiter = ";";//seperator between two concurrent commands
         String command[];
         
         String commandName = "";
@@ -35,17 +35,21 @@ public class Simulator {
         
         while ((line=reader.readLine()) != null)
         {
-        	
+        	line = line.replaceAll(" ", "");
 			if(line.charAt(0) != '/')//escape comments
 			{
 				command = line.split(delimiter);
 				for(int i=0; i<command.length; i++)
     			{
 					String [] splittedCommand = command[i].split("\\(|\\)");
+					String parameters="";
 					commandName = splittedCommand[0];
-					String parameters = splittedCommand[1];
+					
+					if(splittedCommand.length == 2)
+						parameters = splittedCommand[1];
 					String [] arguments;
-					if(!parameters.isEmpty() && parameters  != null)
+					//if(!parameters.isEmpty() && parameters  != null)
+						if(splittedCommand.length == 2)
 					{
 						arguments = parameters.split(",");
 						
@@ -82,7 +86,7 @@ public class Simulator {
 						else if(siteName.contains("x"))
 							TransactionManager.dump(Integer.parseInt(variableName));
 						else
-							TransactionManager.dump(siteName);
+							TransactionManager.dump(Integer.parseInt(siteName));
 					}
 					else if(commandName.equals("R"))
 						TransactionManager.R(transactionName, Integer.parseInt(variableName) );
@@ -95,7 +99,7 @@ public class Simulator {
 					else if(commandName.equals("end"))
 						TransactionManager.end(transactionName);
 				}
-				count++;
+				TransactionManager.count++;
 			}
 			TransactionManager.checkWaitQueue();
 			TransactionManager.sendMessagesToSites();

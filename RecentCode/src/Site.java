@@ -1,9 +1,118 @@
-package com.RCCR;
-
-
+import java.io.*;
 import java.util.*;
+import java.sql.*;
+
+class Lock
+{
+	boolean isLocked;
+	char lockType;//can be R/W/N
+	ArrayList<Transaction> transactionList = new ArrayList<Transaction>();
+	int tempValue;//temporary changes made by transaction in write operation
+
+	Lock()
+	{
+		isLocked = false;
+		lockType = 'N';
+		transactionList = new ArrayList<Transaction>();
+		tempValue = -1;
+	}
+
+	public void lockVariable(operation newOperation)
+	{
+		isLocked = true;
+		this.lockType = newOperation.operationType;
+		if(newOperation.operationType == 'W')
+		{
+			this.tempValue = newOperation.value;
+			transactionList.clear();//only one transaction can have write lock so just in case, delete all elements from list
+			transactionList.add(newOperation.transactionName);
+		}
+		else//for read or no lock
+		{
+			int i = 0;
+			while( i < transactionList.size() && transactionList.get(i).startTime < newOperation.transactionName.startTime)
+				i++;
+			transactionList.add(i, newOperation.transactionName);
+		}
+	}
+
+	public void checkLocks(int variableName)//determining type of lock on variable, or if it is unlocked
+	{
+		if(isLocked == false)
+			System.out.println("Variable x" + variableName + " is not Locked");
+		else
+		{
+			if(lockType == 'R')
+			{
+				System.out.println("Variable x" + variableName + " is Read Locked by Transaction(s) : ");
+				for(int i=0; i<transactionList.size(); i++)
+					System.out.println(transactionList.get(i).transactionName);
+			}
+			else
+				System.out.println("Variable x" + variableName + " is Write Locked by Transaction : " + transactionList.get(0).transactionName);
+		}
+	}
+
+	public void clearLock()//reset lock
+	{
+		isLocked = false;
+		lockType = 'N';
+		transactionList.clear();
+		tempValue = -1;
+	}
+}
 
 
+class Variable
+{
+	int index;
+	int value;
+	int commitTime;
+	boolean valid;//False if site recovers and no write takes place on the variable yet
+	Variable prevVar;//previous commited copy of variable
+
+	Variable(int index, int value, int count)
+	{
+		this.index = index;
+		this.value = value;
+   		commitTime = count;
+   		valid = true;
+   		prevVar = null;
+	}
+
+	void invalidate()
+	{
+		valid = false;
+	}
+
+	void validate()
+	{
+		valid = true;
+	}
+}
+
+class operation//chain of operations
+{
+	int variableName;
+	char operationType;// R/W
+	Transaction transactionName;
+	int value;//if a write operation
+	operation nextOperation;
+	boolean transactionActive;//determines if transaction is active and operation is to be executed or not
+
+	operation()
+	{}
+
+	operation(int variableName, char operationType, Transaction transactionName, int value)
+	{
+		this.variableName = variableName;
+		this.operationType = operationType;
+		this.transactionName = transactionName;
+		this.value = value;
+		nextOperation = null;
+		transactionActive = true;
+	}
+}
 
 class Site
 {
@@ -365,8 +474,9 @@ class Site
 						{
 							if(lockInformation[i].transactionList.get(0).transactionName.equals(transactionName))//write locked by that transaction
 							{
-								//Variable nextVar = new Variable(i, lockInformation[i].tempValue, TransactionManager.getTransaction(transactionName).startTime);
-								Variable nextVar = new Variable(i, lockInformation[i].tempValue, TransactionManager.count);
+							//	Variable nextVar = new Variable(i, lockInformation[i].tempValue, TransactionManager.getTransaction(transactionName).endTime);
+
+Variable nextVar = new Variable(i, lockInformation[i].tempValue, TransactionManager.count);
 								System.out.println("Value of variable x" + i + " has been changed from " + variables[i].value + " to " + nextVar.value + " on Site " + index);
 								nextVar.prevVar = variables[i];//attach new commited value of variable to linked list
 								variables[i] = nextVar;

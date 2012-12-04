@@ -1,6 +1,35 @@
-package com.RCCR;
+import java.io.*;
 import java.util.*;
+import java.sql.*;
 
+class Transaction
+{
+	String transactionName;
+	int startTime;
+	boolean readOnly;
+	boolean accessedSites[];//to keep track of which sites were accessed by the transaction
+	ArrayList<String> transSummary;
+
+	Transaction()
+	{}
+
+
+	Transaction(String transactionName, boolean readOnly, int count)
+	{
+		this.transactionName = transactionName;
+		this.readOnly = readOnly;
+   		startTime = count;
+   		accessedSites = new boolean[11];
+   		transSummary = new ArrayList<String>();
+	}
+
+	public void printSummary()//prints whatever the transaction has gone through
+	{
+		System.out.println("\nSummary for Transaction " + transactionName + " : ");
+		for(int i=0; i<transSummary.size(); i++)
+			System.out.println(transSummary.get(i));
+	}
+}
 
 public class TransactionManager
 {
@@ -11,6 +40,68 @@ public class TransactionManager
 	static ArrayList<operation> waitQueue = new ArrayList<operation>();//wait queue of transaction operations
 	static int count = 0;
 	static ArrayList<Transaction> keepTrackOfTrans = new ArrayList<Transaction>();//keeps track of transactions to print summary at the end
+
+	public static void main(String arg[])throws IOException
+	{
+		for(int i=1; i<=10; i++)
+		{
+			sites[i] = new Site(i, count);
+			siteStatus[i] = true;
+		}
+		File fromFile = new File("tp.txt");
+		//File toFile = new File(output.txt);
+		BufferedReader reader = new BufferedReader(new FileReader(fromFile));
+        //BufferedWriter writer = new BufferedWriter(new FileWriter(toFile));
+        String line = null;
+        String delimiter = ";";//seperator between two concurrent commands
+        String temp[];
+        while ((line=reader.readLine()) != null)
+        {
+			if(line.charAt(0) != '/')//escape comments
+			{
+				temp = line.split(delimiter);
+				for(int i=0; i<temp.length; i++)
+    			{
+					//System.out.println(temp[i]);
+					if(temp[i].indexOf("begin") != -1)
+					{
+						if(temp[i].indexOf("RO") != -1)
+							begin(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")")), true);
+						else
+							begin(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")")), false);
+					}
+					else if(temp[i].indexOf("dump") != -1)
+					{
+						String attr = temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")"));
+						if(attr.equals(""))
+							dump();
+						else if(attr.indexOf("x") == -1)
+							dump(Integer.parseInt(attr));
+						else
+							dump(attr);
+					}
+					else if(temp[i].charAt(0) == 'R')
+						R(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(",")), Integer.parseInt(temp[i].substring(temp[i].indexOf(",") + 2, temp[i].indexOf(")"))), temp[i]);
+					else if(temp[i].charAt(0) == 'W')
+						W(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(",")), Integer.parseInt(temp[i].substring(temp[i].indexOf(",") + 2, temp[i].indexOf(",", 5))), Integer.parseInt(temp[i].substring(temp[i].indexOf(",", 5) + 1, temp[i].indexOf(")"))), temp[i]);
+					else if(temp[i].indexOf("fail") != -1)
+						fail(Integer.parseInt(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")"))));
+					else if(temp[i].indexOf("recover") != -1)
+						recover(Integer.parseInt(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")"))));
+					else if(temp[i].indexOf("end") != -1)
+						end(temp[i].substring(temp[i].indexOf("(") + 1, temp[i].indexOf(")")));
+				}
+				count++;
+			}
+			checkWaitQueue();
+			sendMessagesToSites();
+			checkBuffers();
+		}
+		//queryState();
+		reader.close();
+		printTransactionSummary();
+		//writer.close();
+	}
 
 	public static void begin(String transactionName, Boolean isReadOnly)
 	{
@@ -36,8 +127,7 @@ public class TransactionManager
 
 	public static void dump(String variableNameString)
 	{
-		//int variableName = Integer.parseInt(variableNameString.substring(1));
-		int variableName = Integer.parseInt(variableNameString);
+		int variableName = Integer.parseInt(variableNameString.substring(1));
 		if(variableName % 2 == 0)
 		{
 			for(int i=1; i<=10; i++)
@@ -47,7 +137,7 @@ public class TransactionManager
 			sites[1+(variableName%10)].showVariable(variableName);
 	}
 
-	public static void R(String transactionName, int variableName)
+	public static void R(String transactionName, int variableName, String operationName)
 	{
 		getTransaction(transactionName).transSummary.add("Transaction " + transactionName + " wants to read Variable x" + variableName);
 		if(getTransaction(transactionName) != null)
@@ -56,7 +146,7 @@ public class TransactionManager
 			getTransaction(transactionName).transSummary.add("Transaction " + transactionName + " has been aborted so cannot process operation");
 	}
 
-	public static void W(String transactionName, int variableName, int value)
+	public static void W(String transactionName, int variableName, int value, String operationName)
 	{
 		getTransaction(transactionName).transSummary.add("Transaction " + transactionName + " wants to update value of Variable x" + variableName + " to " + value);
 		if(getTransaction(transactionName) != null)
@@ -171,11 +261,12 @@ public class TransactionManager
 		else//for write operations
 		{
 			int checkIfWritePos = checkForWriteLock(newOperation);
+
 			if(checkIfWritePos == 0)
 				writeLockVariable(newOperation);
 			else if(checkIfWritePos == 1)
 			{
-				System.out.println( newOperation.transactionName.transactionName+"could not proceed");
+System.out.println( newOperation.transactionName.transactionName+"could not proceed");
 				waitQueue.add(newOperation);
 				newOperation.transactionName.transSummary.add("Transaction " + newOperation.transactionName.transactionName + " has been added to wait Queue for write lock");
 			}
